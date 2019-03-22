@@ -184,6 +184,27 @@ Function Get-hosts {
     $TargetDeliveryDomain
 }
 
+Function get-stat {
+$GUIlistView.Items.Clear()
+$MoveRequestStat = Get-MoveRequest | Get-MoveRequestStatistics
+$MoveRequestStat | % {$GUIlistView.Items.Add([pscustomobject]@{DisplayName=($_.DisplayName);StatusDetail=($_.StatusDetail);TotalMailboxSize=($_.TotalMailboxSize);TotalArchiveSize=($_.TotalArchiveSize);PercentComplete=($_.PercentComplete)})}
+}
+
+
+Function RemoveMoveRequest {
+
+                        $RemoveMoveRequestMailbox = @()
+                        #
+                        $RemoveMoveRequestMailbox = $GUIlistView.SelectedItems.DisplayName
+                        $RemoveMoveRequestMailbox | % { Remove-MoveRequest -Identity $_ -Confirm:$false
+                        }
+
+                        While ($GUIlistView.SelectedItems.count -gt 0) {
+                        $GUIlistView.Items.RemoveAt($GUIlistView.SelectedIndex)
+                        }
+
+}
+
 
 # Event Handlers
 
@@ -247,16 +268,26 @@ $GUIBtn_Create.add_Click({
     $MigrationMailbox | foreach {
                                     New-MoveRequest $_.PrimarySmtpAddress -Remote -RemoteHostName $RemoteHostName -TargetDeliveryDomain $TargetDeliveryDomain -RemoteCredential $OnPremCredential -LargeItemLimit 1000 -BadItemLimit 1000 -AcceptLargeDataLoss:$true
                                     Write-Host "Migration request successfully created for user "$_.DisplayName" ("$_.PrimarySmtpAddress")"
+                                    get-stat
                                 }
+
 })
 
 
 $GUIBtn_MoveRequestStatistic.add_Click({
 
-$GUIlistView.Items.Clear()
-$MoveRequestStat = Get-MoveRequest | Get-MoveRequestStatistics
-$MoveRequestStat | % {$GUIlistView.Items.Add([pscustomobject]@{VMName=("User NAme");Status=("user1");Email=("user1@domain.com")})}
+get-stat
+
 })
+
+
+$GUIBtn_RemoveMoveRequest.add_Click({
+
+RemoveMoveRequest
+
+})
+
+
 
 $GUIBtn_Cancel.add_Click({
     #$MainWindow.Close()
@@ -279,16 +310,28 @@ $GUIBtn_Cancel.add_Click({
 
 
 $GUIBtn_Ok.Add_Click({
-                        #While ($vmpicklistView.SelectedItems.count -gt 0) {
-                        #$vmpicklistView.Items.RemoveAt($vmpicklistView.SelectedIndex)
-                        #$selected = $vmpicklistView.SelectedItems
+                        $RemoveMoveRequestMailbox = @()
+                        #
+                        $RemoveMoveRequestMailbox = $GUIlistView.SelectedItems.DisplayName
+                        $RemoveMoveRequestMailbox | % { Remove-MoveRequest -Identity $_ -Confirm:$false
                         
-                        $a = @()
+                        }
+
+                        While ($GUIlistView.SelectedItems.count -gt 0) {
+                        $GUIlistView.Items.RemoveAt($GUIlistView.SelectedIndex)
+                        }
+
+                       # Remove-MoveRequest -Identity ($GUIlistView.SelectedItems.DisplayName) -Confirm
+                        #$GUIlistView.Items.RemoveAt($GUIlistView.SelectedIndex)
+
+                        #$a = @()
+
                         #$GUIlistView.SelectedItems | foreach {$a=$_.Email; $a}
                          #$GUIlistView.Items($vmpicklistView.SelectedIndex).ToString()
-                        $a = $GUIlistView.SelectedItems.Email
-                        Write-Host $a
-                                #}
+
+                        #$a = $GUIlistView.SelectedItems.Email
+                        #Write-Host $a
+                               # }
                       })
 
 
