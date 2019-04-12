@@ -46,7 +46,8 @@
                                         </ListView.View>
                                         <ListView.ContextMenu>
                                             <ContextMenu>
-                                                <MenuItem Header="Menu item 1" />
+                                                <MenuItem Header="Resume Move Request" Name="Btn_ResumeMoveRequest" />
+                                                <MenuItem Header="Suspend Move Request" Name="Btn_SuspendMoveRequest" />
                                                 <MenuItem Header="Move Request Statistic/Refresh" Name="Btn_MoveRequestStatistic" />
                                                 <Separator />
                                                 <MenuItem Header="Remove Move Request" Name="Btn_RemoveMoveRequest" />
@@ -59,15 +60,24 @@
                             </GroupBox>
                             <GroupBox Header="Options:" Width="508" Margin="10,10,0,0" FontSize="11" HorizontalAlignment="Left" VerticalAlignment="Top" Height="50">
                                 <Grid Height="50" Margin="0,10,0,0">
-                                    <CheckBox x:Name="Box_SuspendWhenReadyToComplete" TabIndex="10" HorizontalAlignment="Left" VerticalAlignment="Top" Content="SuspendWhenReadyToComplete"/>
-                                    <CheckBox x:Name="Box_WhatIf" TabIndex="11" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20,0,0,0" Content="WhatIf"/>
+                                    <CheckBox Name="Box_SuspendWhenReadyToComplete" TabIndex="10" HorizontalAlignment="Left" VerticalAlignment="Top" Content="SuspendWhenReadyToComplete"/>
+                                    <CheckBox Name="Box_WhatIf" TabIndex="11" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20,0,0,0" Content="WhatIf"/>
                                     <StackPanel HorizontalAlignment="Left" VerticalAlignment="Bottom" Orientation="Horizontal"/>
                                 </Grid>
                             </GroupBox>
                         </StackPanel>
 
                     </StackPanel>
-                    <Button Name="Btn_Create" Content="New Move Request" TabIndex="13" Margin="182,277,184,-30" RenderTransformOrigin="0.789,0.444" />
+                    <Button Name="Btn_Create" Content="New Move Request" TabIndex="13" Margin="182,277,184,-30" RenderTransformOrigin="0.789,0.444" >
+
+                    <Button.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Migrate to Exchnage Online" Name="Btn_NewMoveRequestToExchnageOnline" />
+                                                <MenuItem Header="Migrate from Exchnage Online" Name="Btn_NewMoveRequestFromExchnageOnline" />
+                                            </ContextMenu>
+                                        </Button.ContextMenu>
+                    </Button>
+
                     <Button Name="Btn_Ok" Content="Ok" TabIndex="13" Margin="182,312,282,-65" RenderTransformOrigin="0.872,0.508" />
                     <Button Name="Btn_Cancel" Content="Cancel" Margin="279,312,184,-65" ClickMode="Press" RenderTransformOrigin="0.8,6.793" />
 
@@ -184,14 +194,14 @@ Function Get-hosts {
     $TargetDeliveryDomain
 }
 
-Function get-stat {
+Function get-stat { #WORKS
 $GUIlistView.Items.Clear()
 $MoveRequestStat = Get-MoveRequest | Get-MoveRequestStatistics
 $MoveRequestStat | % {$GUIlistView.Items.Add([pscustomobject]@{DisplayName=($_.DisplayName);StatusDetail=($_.StatusDetail);TotalMailboxSize=($_.TotalMailboxSize);TotalArchiveSize=($_.TotalArchiveSize);PercentComplete=($_.PercentComplete)})}
 }
 
 
-Function RemoveMoveRequest {
+Function RemoveMoveRequest { #WORKS
 
                         $RemoveMoveRequestMailbox = @()
                         #
@@ -203,6 +213,54 @@ Function RemoveMoveRequest {
                         $GUIlistView.Items.RemoveAt($GUIlistView.SelectedIndex)
                         }
 
+}
+
+Function ResumeMoveRequest { #WORKS
+
+
+                        try {
+                        $MoveRequests = @()
+                        #
+                        $MoveRequests = $GUIlistView.SelectedItems.DisplayName
+                        $MoveRequests | % { Resume-MoveRequest -Identity $_ -Confirm:$false -ErrorAction STOP
+                        }
+                            } 
+                                catch
+                                    { 
+                                    [System.Windows.MessageBox]::Show($Error[0].Exception.Message,"Resume Move Request",([System.Windows.MessageBoxButton]::OK),([System.Windows.MessageBoxImage]::ERROR))
+                                    } 
+
+}
+
+Function SuspendMoveRequest { #WORKS
+                        
+                        try {
+                        $MoveRequests = @()
+                        #
+                        $MoveRequests = $GUIlistView.SelectedItems.DisplayName
+                        $MoveRequests | % { Suspend-MoveRequest -Identity $_ -Confirm:$false -ErrorAction STOP
+                        }
+                            } 
+                                catch
+                                    { 
+                                    [System.Windows.MessageBox]::Show($Error[0].Exception.Message,"Suspend Move Request",([System.Windows.MessageBoxButton]::OK),([System.Windows.MessageBoxImage]::ERROR))
+                                    }
+
+}
+
+
+Function Options{
+
+If ($GUIBox_SuspendWhenReadyToComplete.IsCheched -eq "True")
+    {
+      $Options = $Options + " -SuspendWhenReadyToComplete"  
+    }
+
+If ($GUIBox_WhatIf.IsCheched -eq "True")
+    {
+    $Options = $Options + " -WhatIf"
+    }
+    Write-Host $Options
 }
 
 
@@ -242,7 +300,20 @@ $GUIBtn_Connect.add_Click({
 })
 
 
+$GUIBtn_NewMoveRequestToExchnageOnline.add_Click({
+
+
+})
+
+$GUIBtn_NewMoveRequestFromExchnageOnline.add_Click({
+
+
+})
+
+
 $GUIBtn_Create.add_Click({
+    
+    $GUIBtn_Create.ContextMenu.IsOpen = "true"
     
     $RemoteHostName =$GUIRemoteHostName.Text
     $TargetDeliveryDomain = $GUITargetDeliveryDomain.Text
@@ -252,6 +323,20 @@ $GUIBtn_Create.add_Click({
 
     $userNameCloud = $GUIField_User_OnLine.Text
     $PwdCloud = $GUIField_Pwd_OnLine.Password
+
+    $Options = ""
+
+    If ($GUIBox_SuspendWhenReadyToComplete.IsChecked)
+    {
+      $Options = $Options + "-SuspendWhenReadyToComplete"  
+    }
+
+    If ($GUIBox_WhatIf.IsCheched)
+    {
+    $Options = $Options + " -WhatIf"
+    }
+
+    Write-Host $Options
 
     If (!$userNameOnPrem -or !$PwdOnPrem -or !$userNameCloud -or !$PwdCloud) {
     [System.Windows.MessageBox]::Show("Please enter valid credentials..","Empty credentials",([System.Windows.MessageBoxButton]::OK),([System.Windows.MessageBoxImage]::Warning))
@@ -266,7 +351,7 @@ $GUIBtn_Create.add_Click({
     $MigrationMailbox = @()
     $MigrationMailbox = Get-Recipient -ResultSize unlimited| where {$_.RecipientType -eq "MailUser" } | Select DisplayName,UserPrincipalname,ExchangeGuid,PrimarySmtpAddress,ArchiveStatus | Out-GridView -Title "Select Mailbox for migration to Exchnage Online" -PassThru
     $MigrationMailbox | foreach {
-                                    New-MoveRequest $_.PrimarySmtpAddress -Remote -RemoteHostName $RemoteHostName -TargetDeliveryDomain $TargetDeliveryDomain -RemoteCredential $OnPremCredential -LargeItemLimit 1000 -BadItemLimit 1000 -AcceptLargeDataLoss:$true
+                                    New-MoveRequest $_.PrimarySmtpAddress -Remote -RemoteHostName $RemoteHostName -TargetDeliveryDomain $TargetDeliveryDomain -RemoteCredential $OnPremCredential -LargeItemLimit 10 -BadItemLimit 10 $Options -AcceptLargeDataLoss:$true
                                     Write-Host "Migration request successfully created for user "$_.DisplayName" ("$_.PrimarySmtpAddress")"
                                     get-stat
                                 }
@@ -274,18 +359,37 @@ $GUIBtn_Create.add_Click({
 })
 
 
-$GUIBtn_MoveRequestStatistic.add_Click({
+$GUIBtn_MoveRequestStatistic.add_Click({ #WORKS
 
 get-stat
 
 })
 
 
-$GUIBtn_RemoveMoveRequest.add_Click({
+$GUIBtn_RemoveMoveRequest.add_Click({  #WORKS
 
 RemoveMoveRequest
 
 })
+
+$GUIBtn_ResumeMoveRequest.add_Click({  #WORKS
+  
+ResumeMoveRequest
+                                                
+})
+
+$GUIBtn_SuspendMoveRequest.add_Click({  #WORKS
+
+SuspendMoveRequest
+
+})
+
+$GUIBox_SuspendWhenReadyToComplete.Add_Click({
+
+If ($GUIBox_SuspendWhenReadyToComplete.IsChecked)
+    {$GUIBox_SuspendWhenReadyToComplete.Content | Out-Host}
+
+})                                            
 
 
 
@@ -297,8 +401,20 @@ $GUIBtn_Cancel.add_Click({
     #Get-hosts | 
     
     #write-host $TargetDeliveryDomain
-    Get-Cred
-    write-host $OnPremCredential
+    #Get-Cred
+    #write-host $OnPremCredential
+
+
+    If ($GUIBox_SuspendWhenReadyToComplete.IsChecked)
+    {
+      $Options = $Options + " -SuspendWhenReadyToComplete"  
+    }
+
+    If ($GUIBox_WhatIf.IsCheched)
+    {
+    $Options = $Options + " -WhatIf"
+    }
+
 
 
     #$EXOSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential $CloudCredential -Authentication Basic -AllowRedirection
