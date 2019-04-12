@@ -8,7 +8,7 @@
         <DockPanel>
             <Menu DockPanel.Dock="Top">
                 <MenuItem Header="_File">
-                    <MenuItem x:Name="Btn_Exit" Header="_Exit" />
+                    <MenuItem Name="Btn_Exit" Header="_Exit" />
                 </MenuItem>
 
                 <MenuItem Header="_Edit">
@@ -251,12 +251,12 @@ Function SuspendMoveRequest { #WORKS
 
 Function Options{
 
-If ($GUIBox_SuspendWhenReadyToComplete.IsCheched -eq "True")
+If ($GUIBox_SuspendWhenReadyToComplete.IsCheched)
     {
       $Options = $Options + " -SuspendWhenReadyToComplete"  
     }
 
-If ($GUIBox_WhatIf.IsCheched -eq "True")
+If ($GUIBox_WhatIf.IsCheched)
     {
     $Options = $Options + " -WhatIf"
     }
@@ -268,7 +268,9 @@ If ($GUIBox_WhatIf.IsCheched -eq "True")
 
 #Field_User_OnPrem
 
-
+$GUIBtn_Exit.add_Click({
+Get-CancelBtn
+})
 
 
 #$mailboxes = get-mailbox
@@ -302,20 +304,7 @@ $GUIBtn_Connect.add_Click({
 
 $GUIBtn_NewMoveRequestToExchnageOnline.add_Click({
 
-
-})
-
-$GUIBtn_NewMoveRequestFromExchnageOnline.add_Click({
-
-
-})
-
-
-$GUIBtn_Create.add_Click({
-    
-    $GUIBtn_Create.ContextMenu.IsOpen = "true"
-    
-    $RemoteHostName =$GUIRemoteHostName.Text
+$RemoteHostName =$GUIRemoteHostName.Text
     $TargetDeliveryDomain = $GUITargetDeliveryDomain.Text
 
     $userNameOnPrem = $GUIField_User_OnPrem.Text
@@ -351,10 +340,64 @@ $GUIBtn_Create.add_Click({
     $MigrationMailbox = @()
     $MigrationMailbox = Get-Recipient -ResultSize unlimited| where {$_.RecipientType -eq "MailUser" } | Select DisplayName,UserPrincipalname,ExchangeGuid,PrimarySmtpAddress,ArchiveStatus | Out-GridView -Title "Select Mailbox for migration to Exchnage Online" -PassThru
     $MigrationMailbox | foreach {
-                                    New-MoveRequest $_.PrimarySmtpAddress -Remote -RemoteHostName $RemoteHostName -TargetDeliveryDomain $TargetDeliveryDomain -RemoteCredential $OnPremCredential -LargeItemLimit 10 -BadItemLimit 10 $Options -AcceptLargeDataLoss:$true
+                                    New-MoveRequest $_.PrimarySmtpAddress -Remote -RemoteHostName $RemoteHostName -TargetDeliveryDomain $TargetDeliveryDomain -RemoteCredential $OnPremCredential -LargeItemLimit 10 -BadItemLimit 10 -AcceptLargeDataLoss:$true
                                     Write-Host "Migration request successfully created for user "$_.DisplayName" ("$_.PrimarySmtpAddress")"
                                     get-stat
                                 }
+
+})
+
+$GUIBtn_NewMoveRequestFromExchnageOnline.add_Click({  #NOT WORKING
+
+
+    
+    $RemoteHostName =$GUIRemoteHostName.Text
+    $TargetDeliveryDomain = $GUITargetDeliveryDomain.Text
+
+    $userNameOnPrem = $GUIField_User_OnPrem.Text
+    $PwdOnPrem = $GUIField_Pwd_OnPrem.Password
+
+    $userNameCloud = $GUIField_User_OnLine.Text
+    $PwdCloud = $GUIField_Pwd_OnLine.Password
+
+    $Options = ""
+
+    If ($GUIBox_SuspendWhenReadyToComplete.IsChecked)
+    {
+      $Options = $Options + "-SuspendWhenReadyToComplete"  
+    }
+
+    If ($GUIBox_WhatIf.IsCheched)
+    {
+    $Options = $Options + " -WhatIf"
+    }
+
+    Write-Host $Options
+
+    If (!$userNameOnPrem -or !$PwdOnPrem -or !$userNameCloud -or !$PwdCloud) {
+    [System.Windows.MessageBox]::Show("Please enter valid credentials..","Empty credentials",([System.Windows.MessageBoxButton]::OK),([System.Windows.MessageBoxImage]::Warning))
+    } else {
+    $EncryptPwdOnPrem = $PwdOnPrem | ConvertTo-SecureString -AsPlainText -Force
+    $OnPremCredential = New-Object System.Management.Automation.PSCredential($userNameOnPrem,$EncryptPwdOnPrem)
+
+    $EncryptPwdCloud = $PwdCloud | ConvertTo-SecureString -AsPlainText -Force
+    $CloudCredential = New-Object System.Management.Automation.PSCredential($userNameCloud,$EncryptPwdCloud)
+            }
+
+    $MigrationMailbox = @()
+    $MigrationMailbox = Get-Recipient -ResultSize unlimited| where {$_.RecipientType -eq "UserMailbox" } | Select DisplayName,UserPrincipalname,ExchangeGuid,PrimarySmtpAddress,ArchiveStatus | Out-GridView -Title "Select Mailbox for migration to Exchnage Online" -PassThru
+    $MigrationMailbox | foreach {
+                                    New-MoveRequest $_.PrimarySmtpAddress -Outbound -RemoteHostName $RemoteHostName -RemoteTargetDatabase DB03 -TargetDeliveryDomain "Cloud-tech.ml" -RemoteCredential $OnPremCredential -LargeItemLimit 10 -BadItemLimit 10 -AcceptLargeDataLoss:$true
+                                    Write-Host "Migration request successfully created for user "$_.DisplayName" ("$_.PrimarySmtpAddress")"
+                                    get-stat
+                                }
+
+})
+
+
+$GUIBtn_Create.add_Click({
+    
+    $GUIBtn_Create.ContextMenu.IsOpen = "true"    
 
 })
 
@@ -405,15 +448,7 @@ $GUIBtn_Cancel.add_Click({
     #write-host $OnPremCredential
 
 
-    If ($GUIBox_SuspendWhenReadyToComplete.IsChecked)
-    {
-      $Options = $Options + " -SuspendWhenReadyToComplete"  
-    }
-
-    If ($GUIBox_WhatIf.IsCheched)
-    {
-    $Options = $Options + " -WhatIf"
-    }
+   $GUIBtn_Create.ContextMenu.IsOpen = "true"
 
 
 
